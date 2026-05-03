@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fuel Optimizer</title>
+</head>
+<body>
+
+<h2>Fuel Optimization System</h2>
+
+<label>Start Location:</label>
+<input type="text" id="start" placeholder="e.g. New York"><br><br>
+
+<label>End Location:</label>
+<input type="text" id="end" placeholder="e.g. Washington DC"><br><br>
+
+<button onclick="optimize()">Optimize Route</button>
+
+<h3>Result:</h3>
+<pre id="result"></pre>
+
+<script>
+function optimize() {
+    let start = document.getElementById("start").value;
+    let end = document.getElementById("end").value;
+
+    fetch(`/api/optimize/?start=${start}&end=${end}`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById("result").innerText =
+                JSON.stringify(data, null, 2);
+        });
+}
+</script>
+
+</body>
+</html>

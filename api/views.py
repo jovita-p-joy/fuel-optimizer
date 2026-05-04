@@ -6,6 +6,8 @@ from api.services.fuel_service import FuelService
 
 import requests
 
+cache = {}
+
 
 from django.shortcuts import render
 
@@ -15,6 +17,8 @@ def home(request):
 
 # 🔹 Convert place name → coordinates
 def get_coordinates(place):
+    if place in cache:
+         return cache[place]
     url = "https://nominatim.openstreetmap.org/search"
 
     params = {
@@ -42,8 +46,13 @@ def get_coordinates(place):
 
         lat = float(data[0]["lat"])
         lon = float(data[0]["lon"])
+        
+        coords = [lon, lat]
+        cache[place] = coords
 
-        return [lon, lat]   # IMPORTANT: OSRM needs [lon, lat]
+        return coords
+
+  
 
     except Exception as e:
         print("Geocoding Exception:", e)

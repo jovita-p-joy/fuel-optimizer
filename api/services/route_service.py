@@ -15,7 +15,7 @@ def get_coordinates(place):
         "User-Agent": "fuel-optimizer-app"
     }
 
-    response = requests.get(url, params=params, headers=headers)
+    response = requests.get(url, params=params, headers=headers, timeout=5)
 
     if response.status_code != 200 or not response.json():
         return None

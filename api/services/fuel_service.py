@@ -51,7 +51,7 @@ class FuelService:
         distance, index = self.tree.query(point)
         return self.df.iloc[index]
 
-    def get_nearby_stations(self, lat, lon, radius=0.5):
+    def get_nearby_stations(self, lat, lon, radius=1.0):
         if self.tree is None:
             return []
         indexes = self.tree.query_ball_point([lat, lon], r=radius)
@@ -88,67 +88,54 @@ class FuelService:
     def optimize_fuel_stops(self, route):
         route = self.convert_route(route)
 
-        mileage = 10  # miles per gallon
-        tank_capacity = 100  # gallons
-
-        fuel_left = tank_capacity
+        fuel_left = 100
+        tank_capacity = 100
         total_cost = 0
         stops = []
-        used_stations = set() 
+        used_stations = set()
+        max_stops = 2 
 
-        for i in range(0, len(route), 20):
-            current_point = route[i]
-
-            nearby = self.get_nearby_stations(
-                current_point[0], current_point[1], radius=0.5
-            )
+        for point in route[::20]:
+            if len(stops) >= max_stops:
+                break
+            nearby = self.get_nearby_stations(point[0], point[1], radius=2.0)
 
             if not nearby:
                 continue
 
-            current_station = min(nearby, key=lambda x: x["price"])
+            # pick cheapest nearby station
+            station = min(nearby, key=lambda x: x["price"])
+            station_id = station["OPIS Truckstop ID"]
 
-            cheaper_found = False
-
-            # Look ahead for cheaper station
-            for j in range(i + 1, min(i + 50, len(route))):
-                next_point = route[j]
-
-                future_stations = self.get_nearby_stations(
-                    next_point[0], next_point[1], radius=0.5
-                )
-
-                if not future_stations:
-                    continue
-
-                cheapest_future = min(future_stations, key=lambda x: x["price"])
-
-                if cheapest_future["price"] < current_station["price"]:
-                    cheaper_found = True
-                    break
-
-            # Refuel decision
-            if fuel_left < tank_capacity * 0.3:
-                gallons_needed = tank_capacity - fuel_left
-                cost = gallons_needed * current_station["price"]
+            # simple condition → refill when fuel < 50%
+            if fuel_left < 50 and station_id not in used_stations:
+                gallons_needed = min(tank_capacity - fuel_left, 50)
+                cost = gallons_needed * station["price"]
 
                 total_cost += cost
                 fuel_left = tank_capacity
 
-                station_id = current_station["OPIS Truckstop ID"]
+                used_stations.add(station_id)
 
-                if station_id not in used_stations:
-                    used_stations.add(station_id)
+                stops.append({
+                    "city": station["City"],
+                    "price": station["price"],
+                    "cost": round(cost, 2)
+                })
 
-                    stops.append({
-                        "city": current_station["City"].strip(),
-                        "price": float(current_station["price"]),
-                        "cost": float(cost)
-                    })
+            fuel_left -= 5   # simulate consumption
 
-            # simulate fuel consumption
-            fuel_left -= 5
-            if fuel_left < 0:
-                fuel_left = 0
+        if not stops:
+            first_point = route[0]
+            nearby = self.get_nearby_stations(first_point[0], first_point[1], radius=3.0)
 
-        return stops, total_cost
+            if nearby:
+                station = min(nearby, key=lambda x: x["price"])
+                stops.append({
+                    "city": station["City"],
+                    "price": station["price"],
+                    "cost": 100
+                })
+                total_cost = 100
+
+        return stops, round(total_cost, 2)
